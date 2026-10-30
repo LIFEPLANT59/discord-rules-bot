@@ -101,6 +101,18 @@ client.once('clientReady', () => console.log(`✅ Бот ${client.user.tag} за
 client.on('interactionCreate', async i => {
   if (i.isChatInputCommand() && i.commandName === 'rules') {
     
+    // Проверка ролей: разрешены только "HEAD MODERATOR" и "NUGZAR"
+    // ВАЖНО: Названия ролей должны совпадать с теми, что на сервере, включая регистр.
+    const allowedRoles = ['HEAD MODERATOR', 'NUGZAR'];
+    const hasRole = i.member.roles.cache.some(role => allowedRoles.includes(role.name));
+
+    if (!hasRole) {
+      return i.reply({ 
+        content: '⛔ У вас нет прав для использования этой команды. Доступно только @HEAD MODERATOR и @NUGZAR.', 
+        ephemeral: true 
+      });
+    }
+    
     const chapter = i.options.getInteger('глава');
     const embeds = buildEmbeds(chapter);
 
@@ -108,9 +120,10 @@ client.on('interactionCreate', async i => {
       return i.reply({ content: '❌ Раздел не найден.', ephemeral: true });
     }
 
-    // Сначала подтверждаем нажатие, чтобы Discord не выдал ошибку таймаута
+    // Скрыто подтверждаем нажатие
     await i.deferReply({ ephemeral: true }); 
-    // А потом отправляем сообщения ПРЯМО В КАНАЛ, чтобы они сохранились в истории
+    
+    // Отправляем правила прямо в канал, чтобы они остались в истории
     await i.channel.send({ embeds: [embeds[0]] });
     
     for (let j = 1; j < embeds.length; j++) {
