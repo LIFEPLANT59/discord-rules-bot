@@ -14,17 +14,17 @@ try {
   console.log('⚠️ Ошибка установки прокси в undici, идем напрямую...');
 }
 
-const { Client, GatewayIntentBits, EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, PermissionFlagsBits } = require('discord.js');
+const { Client, GatewayIntentBits, EmbedBuilder } = require('discord.js');
 
 const client = new Client({
   intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent]
 });
 
 const RULES = {
-  general: {
+  1: {
     title: 'РАЗДЕЛ 1 — ОБЩИЕ ПРАВИЛА',
     icon: '📜',
-    desc: 'Основные правила поведения на сервере. Незнание правил не освобождает от ответственности.',
+    desc: 'Основные правила поведения на сервере HERADE HOUSE 2.0. Незнание правил не освобождает от ответственности.',
     points: [
       { name: 'Пункт 1.1', rule: 'Запрещено использование ненормативной лексики в чрезмерном или оскорбительном виде для других пользователей.', punish: 'Пред/Мут.', duration: 'до 2 часов | 3 дней.' },
       { name: 'Пункт 1.2', rule: 'Запрещён расизм, нацизм, дискриминация, унижение людей по национальности, цвету кожи, вероисповеданию.\nЗапрещены нацистские лозунги, символика, ники, аватарки, шутки и любые упоминания связанные с 1488, свастикой, Hitler, Nazi, ZOV, СВО.', punish: 'Мут/Бан.', duration: 'до 10 часов | 2 недели | Смена ника | Бан 3 дня.' },
@@ -35,10 +35,11 @@ const RULES = {
       { name: 'Пункт 1.7', rule: 'Запрещён скам, обман, мошенничество и любые махинации.\nЗапрещено выдавать себя за другого человека, администрацию или медийную личность.', punish: 'Мут/Бан.', duration: 'до 2 недели | Бан навсегда' },
       { name: 'Пункт 1.8', rule: 'Запрещено намеренное создание конфликтов между участниками сервера.', punish: 'Пред/Мут.', duration: 'до 6 часов | 5 дней.' },
       { name: 'Пункт 1.9', rule: 'Запрещён обход правил и поиск лазеек в правилах сервера.', punish: 'На усмотрение администрации.', duration: '—' },
-      { name: 'Пункт 1.10', rule: 'Запрещены рейды сервера, массовый флуд и действия направленные на нарушение работы сервера.', punish: 'Бан.', duration: 'Навсегда.' }
+      { name: 'Пункт 1.10', rule: 'Запрещены рейды сервера, массовый флуд и действия направленные на нарушение работы сервера.', punish: 'Бан.', duration: 'Навсегда.' },
+      { name: 'Пункт 1.11', rule: 'Запрещено использование твинк-аккаунтов (фейков) для обхода бана или мута.', punish: 'Бан.', duration: 'Навсегда (основной и твинк).' }
     ]
   },
-  chat: {
+  2: {
     title: 'РАЗДЕЛ 2 — ЧАТ И ГОЛОСОВЫЕ КАНАЛЫ',
     icon: '💬',
     desc: 'Правила общения в текстовых и голосовых каналах для комфортной атмосферы.',
@@ -49,7 +50,7 @@ const RULES = {
       { name: 'Пункт 2.4', rule: 'Запрещено использование багов или уязвимостей Discord, а также распространение способов их использования.', punish: 'Пред/Бан.', duration: 'до 7 дней.' }
     ]
   },
-  games: {
+  3: {
     title: 'РАЗДЕЛ 3 — ПОВЕДЕНИЕ В ИГРАХ',
     icon: '🎮',
     desc: 'Данный раздел устанавливает правила поведения участников во время совместной игры. Они направлены на поддержание честной игры и комфортной атмосферы.',
@@ -60,22 +61,20 @@ const RULES = {
   }
 };
 
-function buildEmbed(key) {
-  const data = RULES[key];
+function buildEmbeds(sectionId) {
+  const data = RULES[sectionId];
   if (!data) return [];
 
   const embeds = [];
   let currentEmbed = new EmbedBuilder()
     .setColor(0x2b2d31)
-    .setAuthor({ name: 'Правила | TRIGERY', iconURL: client.user.displayAvatarURL() })
+    .setAuthor({ name: 'Правила | HERADE HOUSE 2.0', iconURL: client.user.displayAvatarURL() })
     .setTitle(`${data.icon} ${data.title}`)
     .setDescription(`**${data.desc}**`);
 
   let fieldCount = 0;
 
   data.points.forEach(p => {
-    // Discord разрешает максимум 25 полей. Мы добавляем по 4 поля за пункт.
-    // Если достигаем лимита, сохраняем текущий эмбед и начинаем новый.
     if (fieldCount + 4 > 25) {
       embeds.push(currentEmbed);
       currentEmbed = new EmbedBuilder()
@@ -97,31 +96,29 @@ function buildEmbed(key) {
   return embeds;
 }
 
-function buildMenu() {
-  const menu = new StringSelectMenuBuilder()
-    .setCustomId('rules_menu')
-    .setPlaceholder('Выберите раздел...')
-    .addOptions(
-      new StringSelectMenuOptionBuilder().setLabel('Общие правила').setValue('general').setEmoji('📜'),
-      new StringSelectMenuOptionBuilder().setLabel('Чат и голосовые каналы').setValue('chat').setEmoji('💬'),
-      new StringSelectMenuOptionBuilder().setLabel('Поведение в играх').setValue('games').setEmoji('🎮')
-    );
-  return new ActionRowBuilder().addComponents(menu);
-}
-
 client.once('clientReady', () => console.log(`✅ Бот ${client.user.tag} запущен!`));
 
 client.on('interactionCreate', async i => {
   if (i.isChatInputCommand() && i.commandName === 'rules') {
-    if (!i.member.permissions.has(PermissionFlagsBits.Administrator)) {
-      return i.reply({ content: '⛔ Только для админов.', ephemeral: true });
+    
+    const chapter = i.options.getInteger('глава');
+    const embeds = buildEmbeds(chapter);
+
+    if (embeds.length === 0) {
+      return i.reply({ content: '❌ Раздел не найден.', ephemeral: true });
     }
-    // Передаем массив эмбедов (buildEmbed теперь возвращает массив)
-    await i.reply({ embeds: buildEmbed('general'), components: [buildMenu()] });
-  }
-  if (i.isStringSelectMenu() && i.customId === 'rules_menu') {
-    await i.deferUpdate();
-    await i.editReply({ embeds: buildEmbed(i.values[0]), components: [buildMenu()] });
+
+    // Сначала подтверждаем нажатие, чтобы Discord не выдал ошибку таймаута
+    await i.deferReply({ ephemeral: true }); 
+    // А потом отправляем сообщения ПРЯМО В КАНАЛ, чтобы они сохранились в истории
+    await i.channel.send({ embeds: [embeds[0]] });
+    
+    for (let j = 1; j < embeds.length; j++) {
+      await i.channel.send({ embeds: [embeds[j]] });
+    }
+
+    // Удаляем скрытое сообщение "думает..."
+    await i.deleteReply().catch(() => {});
   }
 });
 
