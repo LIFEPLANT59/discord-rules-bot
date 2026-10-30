@@ -1,14 +1,20 @@
 require('dotenv').config();
-const { Client, GatewayIntentBits, EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, PermissionFlagsBits } = require('discord.js');
-const { setGlobalDispatcher, ProxyAgent } = require('undici');
+const { bootstrap } = require('global-agent');
 
-// Настройка прокси для обхода сетевых ошибок WSL (если он не нужен, закомментируй)
+// Настройка прокси для обхода блокировок WSL
 const PROXY_URL = process.env.HTTP_PROXY || 'http://127.0.0.1:3067';
+process.env.GLOBAL_AGENT_HTTP_PROXY = PROXY_URL;
+process.env.GLOBAL_AGENT_HTTPS_PROXY = PROXY_URL;
+bootstrap();
+
+const { setGlobalDispatcher, ProxyAgent } = require('undici');
 try {
   setGlobalDispatcher(new ProxyAgent(PROXY_URL));
 } catch (e) {
-  console.log('Прокси не установлен, идем напрямую...');
+  console.log('⚠️ Ошибка установки прокси в undici, идем напрямую...');
 }
+
+const { Client, GatewayIntentBits, EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, PermissionFlagsBits } = require('discord.js');
 
 const client = new Client({
   intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent]
