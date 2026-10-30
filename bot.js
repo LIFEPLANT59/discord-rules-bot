@@ -1,7 +1,7 @@
 require('dotenv').config();
 const { bootstrap } = require('global-agent');
 
-// Настройка прокси (если выдает ошибку сети, проверь порт 3067)
+// Настройка прокси для обхода блокировок WSL
 const PROXY_URL = process.env.HTTP_PROXY || 'http://127.0.0.1:3067';
 process.env.GLOBAL_AGENT_HTTP_PROXY = PROXY_URL;
 process.env.GLOBAL_AGENT_HTTPS_PROXY = PROXY_URL;
@@ -20,7 +20,6 @@ const client = new Client({
   intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent]
 });
 
-// ВСЕ ПРАВИЛА ИЗ ТВОЕГО ФАЙЛА
 const RULES = {
   general: {
     title: 'РАЗДЕЛ 1 — ОБЩИЕ ПРАВИЛА',
@@ -63,25 +62,39 @@ const RULES = {
 
 function buildEmbed(key) {
   const data = RULES[key];
-  if (!data) return null;
+  if (!data) return [];
 
-  // Из-за лимита Discord в 25 полей и 6000 символов, если правил слишком много,
-  // мы выводим их по частям (этот код выведет первые 10 пунктов раздела "Общие правила").
-  const embed = new EmbedBuilder()
+  const embeds = [];
+  let currentEmbed = new EmbedBuilder()
     .setColor(0x2b2d31)
     .setAuthor({ name: 'Правила | TRIGERY', iconURL: client.user.displayAvatarURL() })
     .setTitle(`${data.icon} ${data.title}`)
     .setDescription(`**${data.desc}**`);
 
+  let fieldCount = 0;
+
   data.points.forEach(p => {
-    embed.addFields({ name: `\u200b\n🔹 **${p.name}**`, value: `\`\`\`${p.rule}\`\`\`` });
-    embed.addFields(
+    // Discord разрешает максимум 25 полей. Мы добавляем по 4 поля за пункт.
+    // Если достигаем лимита, сохраняем текущий эмбед и начинаем новый.
+    if (fieldCount + 4 > 25) {
+      embeds.push(currentEmbed);
+      currentEmbed = new EmbedBuilder()
+        .setColor(0x2b2d31)
+        .setTitle(`${data.icon} ${data.title} (продолжение)`);
+      fieldCount = 0;
+    }
+
+    currentEmbed.addFields(
+      { name: `\u200b\n🔹 **${p.name}**`, value: `\`\`\`${p.rule}\`\`\`` },
       { name: 'Наказание:', value: `> **${p.punish}**`, inline: true },
       { name: 'Длительность:', value: `> **${p.duration}**`, inline: true },
       { name: '\u200b', value: '\u200b', inline: true }
     );
+    fieldCount += 4;
   });
-  return embed;
+
+  embeds.push(currentEmbed);
+  return embeds;
 }
 
 function buildMenu() {
@@ -96,18 +109,19 @@ function buildMenu() {
   return new ActionRowBuilder().addComponents(menu);
 }
 
-client.once('ready', () => console.log(`✅ Бот ${client.user.tag} запущен!`));
+client.once('clientReady', () => console.log(`✅ Бот ${client.user.tag} запущен!`));
 
 client.on('interactionCreate', async i => {
   if (i.isChatInputCommand() && i.commandName === 'rules') {
     if (!i.member.permissions.has(PermissionFlagsBits.Administrator)) {
       return i.reply({ content: '⛔ Только для админов.', ephemeral: true });
     }
-    await i.reply({ embeds: [buildEmbed('general')], components: [buildMenu()] });
+    // Передаем массив эмбедов (buildEmbed теперь возвращает массив)
+    await i.reply({ embeds: buildEmbed('general'), components: [buildMenu()] });
   }
   if (i.isStringSelectMenu() && i.customId === 'rules_menu') {
     await i.deferUpdate();
-    await i.editReply({ embeds: [buildEmbed(i.values[0])], components: [buildMenu()] });
+    await i.editReply({ embeds: buildEmbed(i.values[0]), components: [buildMenu()] });
   }
 });
 
